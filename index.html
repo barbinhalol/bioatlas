@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BioAtlas · Mergulho no Corpo Humano</title>
+<style>
+  :root{
+    --bg0:#0b1f28; --bg1:#06121a; --bg2:#02080c;
+    --glass: rgba(14,30,40,.55);
+    --glass-strong: rgba(16,34,46,.85);
+    --stroke: rgba(150,220,235,.16);
+    --txt:#eafaff; --txt-dim:#a4c4cf;
+    --p1:#2dd4ff; --p1l:#9af0ff; --p1d:#0a5f8c; --p1g:rgba(45,212,255,.55);
+    --p2:#ff9d2e; --p2l:#ffd07a; --p2d:#a4490a; --p2g:rgba(255,157,46,.5);
+    --p3:#34e0a1; --p3l:#8affc9; --p3d:#0c855d; --p3g:rgba(52,224,161,.5);
+    --p4:#ff5fa2; --p4l:#ffa9cd; --p4d:#a81e5f; --p4g:rgba(255,95,162,.55);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation;}
+  html,body{height:100%; margin:0; overflow:hidden;}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt);
+    background:radial-gradient(1300px 1000px at 50% 40%, var(--bg0) 0%, var(--bg1) 50%, var(--bg2) 100%);
+    user-select:none;
+  }
+  /* brilhos orgânicos de fundo (em vez de nebulosa) */
+  body::before, body::after{
+    content:""; position:fixed; inset:-10%; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(460px 460px at 20% 26%, rgba(45,212,255,.14), transparent 70%),
+      radial-gradient(540px 540px at 82% 74%, rgba(52,224,161,.12), transparent 70%),
+      radial-gradient(420px 420px at 72% 16%, rgba(255,95,120,.10), transparent 70%),
+      radial-gradient(380px 380px at 28% 82%, rgba(255,157,46,.08), transparent 70%);
+    filter:blur(10px);
+  }
+  #space{position:fixed; inset:0; z-index:1;}
+  #app{position:fixed; inset:0; z-index:2;}
+
+  /* ---------- TOP BAR ---------- */
+  .topbar{
+    position:fixed; top:0; left:0; right:0; z-index:30;
+    display:flex; align-items:center; gap:12px; padding:14px 18px;
+    pointer-events:none; transition:opacity .6s ease, transform .6s ease;
+  }
+  .topbar.hidden{opacity:0; transform:translateY(-12px);}
+  .brand{display:flex; align-items:center; gap:11px; pointer-events:auto;}
+  .brand .logo{
+    width:34px;height:34px;border-radius:50%; flex:none; display:grid; place-items:center; font-size:17px;
+    background:radial-gradient(circle at 36% 30%, #d6fbff, var(--p1) 48%, var(--p1d) 100%);
+    box-shadow:0 0 18px var(--p1g), inset -3px -4px 8px rgba(0,40,60,.5);
+    animation:beat 1.6s ease-in-out infinite;
+  }
+  @keyframes beat{0%,100%{transform:scale(1);}14%{transform:scale(1.14);}28%{transform:scale(1);}42%{transform:scale(1.08);}}
+  .brand h1{font-size:15px; font-weight:700; letter-spacing:.4px; margin:0; line-height:1;}
+  .brand p{font-size:11px; margin:2px 0 0; color:var(--txt-dim); letter-spacing:.4px;}
+  .spacer{flex:1;}
+  .progress-wrap{
+    pointer-events:auto; display:flex; align-items:center; gap:10px;
+    background:var(--glass); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--stroke); padding:7px 14px; border-radius:40px;
+    font-size:11.5px; color:var(--txt-dim);
+  }
+  .progress-bar{width:90px; height:6px; border-radius:6px; background:rgba(255,255,255,.10); overflow:hidden;}
+  .progress-fill{height:100%; width:0%; border-radius:6px;
+    background:linear-gradient(90deg, var(--p1), var(--p3));
+    box-shadow:0 0 12px var(--p1g); transition:width .6s cubic-bezier(.2,.8,.2,1);}
+  .iconbtn{
+    pointer-events:auto; width:40px;height:40px;border-radius:50%;
+    display:grid; place-items:center; cursor:pointer; flex:none;
+    background:var(--glass); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--stroke); color:var(--txt); font-size:16px;
+    transition:transform .2s ease, background .2s ease;
+  }
+  .iconbtn:hover{transform:scale(1.08); background:var(--glass-strong);}
+
+  /* ---------- STAGE ---------- */
+  #stage{position:absolute; inset:0; z-index:10; transform-origin:center center;}
+  #stage.busy{pointer-events:none;}
+  #links{position:absolute; inset:0; z-index:9; pointer-events:none;}
+
+  /* ===== HUB: CORPO HUMANO ===== */
+  .human-wrap{
+    position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
+    height:78vh; width:calc(78vh * 140 / 320);
+    animation:hubin 1s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes hubin{from{opacity:0; transform:translate(-50%,-50%) scale(.82);}to{opacity:1; transform:translate(-50%,-50%) scale(1);}}
+  .human{width:100%; height:100%; animation:breathe 5.5s ease-in-out infinite; filter:drop-shadow(0 0 26px rgba(45,212,255,.30));}
+  @keyframes breathe{0%,100%{transform:scale(1);}50%{transform:scale(1.018);}}
+  .human svg{width:100%; height:100%; display:block;}
+
+  .hotspot{position:absolute; left:50%; transform:translate(-50%,-50%); cursor:pointer; z-index:14;}
+  .hotspot .dot{
+    width:26px;height:26px;border-radius:50%; position:relative;
+    background:radial-gradient(circle at 35% 30%, #fff, var(--hc) 60%);
+    box-shadow:0 0 20px var(--hg), 0 0 0 2px rgba(255,255,255,.25) inset;
+    transition:transform .25s ease;
+  }
+  .hotspot .dot::after{
+    content:""; position:absolute; inset:-6px; border-radius:50%;
+    border:2px solid var(--hc); opacity:.7; animation:pingring 2.4s ease-out infinite;
+  }
+  @keyframes pingring{0%{transform:scale(.7); opacity:.7;}70%{opacity:0;}100%{transform:scale(2.4); opacity:0;}}
+  .hotspot:hover .dot{transform:scale(1.25);}
+  .hotspot .card{
+    position:absolute; top:50%; transform:translateY(-50%);
+    display:flex; align-items:center; gap:11px; white-space:nowrap;
+    background:var(--glass-strong); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--stroke); border-left:3px solid var(--hc);
+    padding:9px 15px 9px 11px; border-radius:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4); transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .hotspot:hover .card{transform:translateY(-50%) scale(1.04); box-shadow:0 14px 40px var(--hg);}
+  .hotspot.right .card{left:46px;}
+  .hotspot.left  .card{right:46px;}
+  .hotspot .card .thumb{width:40px;height:30px; flex:none;}
+  .hotspot .card .thumb svg{width:100%;height:100%;}
+  .hotspot .card .tag{font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--hc);}
+  .hotspot .card .nm{font-size:13.5px; font-weight:700; line-height:1.15; margin-top:1px; color:#eafaff;}
+  .hotspot .card .rg{font-size:10.5px; color:var(--txt-dim); margin-top:1px;}
+  /* linha guia dot->card */
+  .hotspot .lead{position:absolute; top:50%; height:2px; background:linear-gradient(90deg,var(--hc),transparent); opacity:.6;}
+  .hotspot.right .lead{left:20px; width:28px; background:linear-gradient(90deg,var(--hc),transparent);}
+  .hotspot.left  .lead{right:20px; width:28px; background:linear-gradient(270deg,var(--hc),transparent);}
+
+  .hub-caption{
+    position:absolute; left:50%; bottom:-2px; transform:translate(-50%,0);
+    font-size:12.5px; color:var(--txt-dim); letter-spacing:.3px; text-align:center; white-space:nowrap;
+  }
+
+  /* ===== CENA DA AULA: estrutura + nós ===== */
+  .core{
+    position:absolute; left:50%; top:50%;
+    width:var(--coreSize); height:var(--coreSize); border-radius:50%;
+    transform:translate(-50%,-50%);
+    display:grid; place-items:center;
+    background:radial-gradient(circle at 38% 32%, rgba(255,255,255,.10), rgba(8,20,28,.2) 55%, rgba(4,12,18,.5) 100%);
+    box-shadow:inset 0 0 40px rgba(0,0,0,.5), 0 0 60px var(--cg), inset 0 0 0 1px rgba(255,255,255,.06);
+    backdrop-filter:blur(3px);
+    animation:coreEmerge .8s cubic-bezier(.2,.85,.25,1);
+  }
+  @keyframes coreEmerge{from{opacity:0; transform:translate(-50%,-50%) scale(.4);}to{opacity:1; transform:translate(-50%,-50%) scale(1);}}
+  .core::before{content:""; position:absolute; inset:0; border-radius:50%;
+    border:1px solid var(--cm); opacity:.35; animation:corehalo 4s ease-in-out infinite;}
+  @keyframes corehalo{0%,100%{transform:scale(1); opacity:.3;}50%{transform:scale(1.06); opacity:.6;}}
+  .core svg{width:74%; height:74%; filter:drop-shadow(0 8px 22px rgba(0,0,0,.5));}
+  .core .core-title{position:absolute; bottom:-30px; left:50%; transform:translateX(-50%);
+    font-size:13px; font-weight:700; letter-spacing:.4px; color:#dffaff; white-space:nowrap; text-shadow:0 2px 10px #000;}
+
+  .node{
+    position:absolute; left:50%; top:50%;
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    transform:translate(-50%,-50%); cursor:pointer; will-change:transform; z-index:12;
+  }
+  .node .vesicle{position:relative; border-radius:50%; flex:none; transition:transform .25s ease, filter .25s ease;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,.6), rgba(255,255,255,0) 44%),
+      radial-gradient(circle at 68% 78%, var(--cd), var(--cm) 58%, var(--cl) 108%);
+    box-shadow:inset -5px -7px 18px rgba(0,0,0,.5), inset 4px 5px 14px rgba(255,255,255,.18), 0 0 26px var(--cg), 0 8px 24px rgba(0,0,0,.45);}
+  .node:hover .vesicle{transform:scale(1.12); filter:brightness(1.12);}
+  .node .label{font-size:12px; font-weight:600; letter-spacing:.2px; text-align:center; max-width:130px;
+    line-height:1.22; color:var(--txt); text-shadow:0 2px 10px rgba(0,0,0,.85); pointer-events:none;}
+  .node .sub{font-size:10px; font-weight:500; color:var(--txt-dim); margin-top:-4px; text-shadow:0 2px 8px #000;}
+  .node.visited .vesicle::before{
+    content:"✓"; position:absolute; right:-2px; top:-2px; width:21px;height:21px;border-radius:50%;
+    display:grid; place-items:center; font-size:12px; font-weight:800; color:#04210f;
+    background:radial-gradient(circle at 35% 30%, #bfffe0, #34e0a1);
+    box-shadow:0 0 12px rgba(52,224,161,.8); border:1.5px solid rgba(255,255,255,.5);}
+
+  /* voltar */
+  .back-fab{
+    position:fixed; left:18px; bottom:18px; z-index:30;
+    display:flex; align-items:center; gap:9px; cursor:pointer;
+    padding:11px 18px 11px 13px; border-radius:40px;
+    background:var(--glass-strong); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--stroke); color:var(--txt); font-size:13px; font-weight:600;
+    opacity:0; transform:translateY(16px); pointer-events:none;
+    transition:opacity .4s ease, transform .4s ease, background .2s;
+  }
+  .back-fab.show{opacity:1; transform:translateY(0); pointer-events:auto;}
+  .back-fab:hover{background:rgba(30,54,66,.92);}
+  .back-fab .arr{font-size:16px; line-height:1;}
+
+  .hint-float{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%); z-index:25;
+    font-size:12px; color:var(--txt-dim); letter-spacing:.3px;
+    background:var(--glass); border:1px solid var(--stroke); border-radius:30px;
+    padding:8px 18px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    transition:opacity .5s ease; pointer-events:none;
+  }
+  .hint-float.hidden{opacity:0;}
+
+  /* ---------- INTRO ---------- */
+  #intro{
+    position:fixed; inset:0; z-index:40; display:grid; place-items:center; text-align:center; padding:24px;
+    background:radial-gradient(900px 700px at 50% 45%, rgba(10,30,40,.4), rgba(2,8,12,.85));
+    transition:opacity .8s ease;
+  }
+  #intro.gone{opacity:0; pointer-events:none;}
+  .intro-inner{max-width:560px; animation:rise 1s cubic-bezier(.2,.8,.2,1);}
+  @keyframes rise{from{opacity:0; transform:translateY(30px);}to{opacity:1; transform:translateY(0);}}
+  .intro-orb{
+    width:118px;height:118px;border-radius:50%; margin:0 auto 26px; position:relative;
+    background:radial-gradient(circle at 36% 30%, #d8fcff, var(--p1) 46%, var(--p1d) 100%);
+    box-shadow:0 0 60px var(--p1g), inset -6px -8px 22px rgba(0,40,60,.5), inset 5px 7px 18px rgba(255,255,255,.35);
+    animation:beat 1.6s ease-in-out infinite;
+  }
+  .intro-orb::after{content:""; position:absolute; inset:-14px; border-radius:50%; border:2px solid var(--p1); opacity:.4; animation:pingring 2.4s ease-out infinite;}
+  #intro h2{font-size:34px; margin:0 0 10px; font-weight:800; letter-spacing:.5px;
+    background:linear-gradient(120deg,#fff,#bff0ff 40%,#8affc9 72%,#fff);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+  #intro p.sub{font-size:15px; color:var(--txt-dim); margin:0 0 8px; line-height:1.55;}
+  #intro p.topics{font-size:12.5px; color:var(--txt-dim); opacity:.85; margin:0 0 30px; line-height:1.7;}
+  .start-btn{
+    cursor:pointer; border:none; font-family:inherit;
+    padding:16px 38px; border-radius:44px; font-size:16px; font-weight:700; color:#04122a;
+    background:linear-gradient(135deg, #9af0ff, #2dd4ff 55%, #34e0a1);
+    box-shadow:0 8px 30px rgba(45,212,255,.45), 0 0 0 1px rgba(255,255,255,.2) inset;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .start-btn:hover{transform:translateY(-2px) scale(1.03); box-shadow:0 12px 40px rgba(45,212,255,.6);}
+  .headphones{margin-top:18px; font-size:12px; color:var(--txt-dim); letter-spacing:.4px;}
+
+  /* ---------- MODAL ---------- */
+  #backdrop{
+    position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; padding:22px;
+    background:rgba(2,8,14,.55); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px);
+    opacity:0; transition:opacity .35s ease;
+  }
+  #backdrop.open{display:flex; opacity:1;}
+  .modal{
+    width:min(740px, 96vw); max-height:88vh; display:flex; flex-direction:column;
+    background:var(--glass-strong); border:1px solid var(--stroke);
+    border-radius:30px; overflow:hidden; position:relative;
+    backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px);
+    box-shadow:0 30px 90px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.05) inset;
+    transform:scale(.9) translateY(14px); opacity:0;
+    transition:transform .4s cubic-bezier(.2,.85,.25,1), opacity .35s ease;
+  }
+  #backdrop.open .modal{transform:scale(1) translateY(0); opacity:1;}
+  .modal-head{position:relative; height:172px; flex:none; overflow:hidden; display:grid; place-items:center;}
+  .modal-head .glow{position:absolute; inset:0; opacity:.9;
+    background:radial-gradient(420px 220px at 50% 16%, var(--mh-glow), transparent 72%);}
+  .modal-head svg{height:128px; width:auto; position:relative; z-index:2; filter:drop-shadow(0 14px 30px rgba(0,0,0,.5));}
+  .modal-head .chip{position:absolute; top:16px; left:18px; z-index:3;
+    font-size:10.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+    padding:6px 13px; border-radius:30px; color:#03101f; background:var(--mh-accent); box-shadow:0 4px 16px rgba(0,0,0,.3);}
+  .modal-close{position:absolute; top:14px; right:14px; z-index:4;
+    width:38px;height:38px;border-radius:50%; cursor:pointer; border:none;
+    background:rgba(6,14,22,.5); color:#fff; font-size:19px; line-height:1;
+    backdrop-filter:blur(8px); display:grid; place-items:center; transition:transform .2s, background .2s;}
+  .modal-close:hover{transform:rotate(90deg) scale(1.05); background:rgba(20,34,46,.85);}
+  .modal-body{padding:22px 26px 30px; overflow-y:auto; overscroll-behavior:contain;}
+  .modal-body::-webkit-scrollbar{width:9px;}
+  .modal-body::-webkit-scrollbar-thumb{background:rgba(150,220,235,.22); border-radius:8px;}
+  .modal-title{font-size:23px; font-weight:800; margin:0 0 4px; letter-spacing:.2px;}
+  .modal-blurb{font-size:14px; color:var(--txt-dim); margin:0 0 18px; line-height:1.55;}
+  .sec{margin:0 0 18px;}
+  .sec h4{font-size:13px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--mh-accent); margin:0 0 9px; display:flex; align-items:center; gap:8px;}
+  .sec h4::before{content:""; width:7px;height:7px;border-radius:50%; background:var(--mh-accent); box-shadow:0 0 10px var(--mh-glow);}
+  .sec p{font-size:14.5px; line-height:1.62; margin:0 0 9px; color:#ddf2f8;}
+  .sec ul{margin:0 0 6px; padding:0; list-style:none;}
+  .sec li{font-size:14px; line-height:1.55; margin:0 0 9px; padding-left:22px; position:relative; color:#d4eaf2;}
+  .sec li::before{content:""; position:absolute; left:4px; top:8px; width:8px;height:8px;border-radius:50%;
+    background:var(--mh-accent); opacity:.8; box-shadow:0 0 8px var(--mh-glow);}
+  .sec strong{color:#fff; font-weight:700;}
+  .sec .tag{color:var(--mh-accent); font-weight:700;}
+
+  .quiz-title{font-size:13px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--txt-dim); margin:26px 0 12px; display:flex; align-items:center; gap:9px;}
+  .quiz-title .pill{font-size:10px; background:rgba(255,255,255,.08); padding:3px 9px; border-radius:20px; letter-spacing:.5px;}
+  .fc{background:rgba(8,18,26,.5); border:1px solid var(--stroke); border-radius:18px;
+    padding:15px 17px; margin:0 0 12px; cursor:pointer; position:relative; transition:border-color .25s, background .25s, transform .15s;}
+  .fc:hover{border-color:var(--mh-accent); background:rgba(14,26,40,.7);}
+  .fc:active{transform:scale(.99);}
+  .fc .q{font-size:14.5px; font-weight:600; color:#fff; display:flex; gap:10px; align-items:flex-start; line-height:1.45;}
+  .fc .q .qm{flex:none; width:24px;height:24px;border-radius:50%; display:grid; place-items:center;
+    font-size:13px; font-weight:800; color:#03101f; background:var(--mh-accent); margin-top:-1px;}
+  .fc .a{max-height:0; opacity:0; overflow:hidden; transition:max-height .4s ease, opacity .35s ease, margin .35s ease;}
+  .fc.open .a{max-height:320px; opacity:1; margin-top:11px;}
+  .fc .a-inner{font-size:14px; line-height:1.6; color:#d4eaf2; padding-top:11px; border-top:1px dashed rgba(150,220,235,.22);}
+  .fc .a-inner strong{color:var(--mh-accent);}
+  .fc .reveal-hint{font-size:11px; color:var(--txt-dim); margin-top:9px; letter-spacing:.4px; transition:opacity .3s;}
+  .fc.open .reveal-hint{opacity:0; height:0; margin:0;}
+
+  #toast{position:fixed; left:50%; top:74px; transform:translate(-50%,-20px); z-index:60;
+    background:linear-gradient(135deg, rgba(52,224,161,.95), rgba(45,212,255,.92));
+    color:#03121f; font-weight:700; font-size:14px; padding:13px 24px; border-radius:40px;
+    box-shadow:0 14px 40px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .5s ease, transform .5s ease;}
+  #toast.show{opacity:1; transform:translate(-50%,0);}
+
+  @media (max-width:600px){
+    .brand p{display:none;}
+    #intro h2{font-size:27px;}
+    .human-wrap{height:64vh; width:calc(64vh * 140 / 320);}
+    .hotspot .card .nm{font-size:12px;}
+    .modal-head{height:148px;} .modal-head svg{height:104px;}
+    .node .label{font-size:11px; max-width:104px;}
+  }
+</style>
+</head>
+<body>
+<canvas id="space"></canvas>
+
+<div id="app">
+  <div class="topbar hidden" id="topbar">
+    <div class="brand">
+      <div class="logo">🧬</div>
+      <div><h1>BioAtlas</h1><p>Da célula ao corpo · mapa interativo</p></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="progress-wrap">
+      <span id="progress-label">0 / 0 explorados</span>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="iconbtn" id="infoBtn" title="Sobre / como usar">ⓘ</div>
+    <div class="iconbtn" id="muteBtn" title="Som">🔊</div>
+  </div>
+
+  <canvas id="links"></canvas>
+  <div id="stage"></div>
+
+  <div class="back-fab" id="backFab"><span class="arr">‹</span><span id="backLabel">Voltar ao corpo</span></div>
+  <div class="hint-float" id="hintFloat">Clique numa região do corpo para mergulhar</div>
+</div>
+
+<div id="backdrop"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+
+<div id="intro">
+  <div class="intro-inner">
+    <div class="intro-orb"></div>
+    <h2>BioAtlas</h2>
+    <p class="sub">Um mapa vivo das suas 4 aulas de Biologia Celular &amp; Histologia.<br>Mergulhe no corpo humano: cada região leva a uma estrutura — a célula, o tecido, a cóclea.</p>
+    <p class="topics">🫀 Peito · a célula &nbsp;|&nbsp; 🔬 Abdômen · organelas &nbsp;|&nbsp; 👂 Cabeça · junções &amp; audição &nbsp;|&nbsp; 🫁 Garganta · tecidos</p>
+    <button class="start-btn" id="startBtn">Entrar no corpo ✦</button>
+    <div class="headphones">🎧 Use fones para a experiência completa</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ======================================================================
+   BioAtlas — mergulho no corpo humano
+   ====================================================================== */
+
+/* ---- toque robusto p/ iPhone/iPad: faz o tap valer como clique, sem mudar a experiência ---- */
+function tap(el, fn){
+  if(!el) return;
+  let sx=0, sy=0, moved=false, lastTouch=0;
+  el.addEventListener('touchstart', function(e){ var t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; moved=false; }, {passive:true});
+  el.addEventListener('touchmove', function(e){ var t=e.changedTouches[0]; if(Math.abs(t.clientX-sx)>10||Math.abs(t.clientY-sy)>10) moved=true; }, {passive:true});
+  el.addEventListener('touchend', function(e){ if(moved) return; e.preventDefault(); lastTouch=Date.now(); fn(e); }, {passive:false});
+  el.addEventListener('click', function(e){ if(Date.now()-lastTouch<600) return; fn(e); });
+}
+
+/* ---------------- ILUSTRAÇÕES SVG (volumétricas) ---------------- */
+function grad(id,stops,cx='38%',cy='30%'){
+  return `<radialGradient id="${id}" cx="${cx}" cy="${cy}" r="75%">`+
+    stops.map(s=>`<stop offset="${s[0]}" stop-color="${s[1]}"/>`).join('')+`</radialGradient>`;
+}
+const ILLO = {
+  /* CORPO HUMANO holográfico (hub) */
+  body:`<svg viewBox="0 0 140 320" xmlns="http://www.w3.org/2000/svg"><defs>
+      <linearGradient id="bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bff4ff" stop-opacity=".55"/><stop offset="1" stop-color="#1a7fa6" stop-opacity=".30"/></linearGradient>
+      <linearGradient id="lb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fe6ff" stop-opacity=".55"/><stop offset="1" stop-color="#176f96" stop-opacity=".30"/></linearGradient>
+      ${grad('heart',[[0,'#ffd0d8'],[.5,'#ff5f7e'],[1,'#b01e3f']])}
+      <filter id="bg" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <g filter="url(#bg)">
+      <g stroke="url(#lb)" stroke-linecap="round" fill="none">
+        <line x1="52" y1="84" x2="30" y2="156" stroke-width="15"/>
+        <line x1="88" y1="84" x2="110" y2="156" stroke-width="15"/>
+        <line x1="60" y1="176" x2="52" y2="270" stroke-width="19"/>
+        <line x1="80" y1="176" x2="88" y2="270" stroke-width="19"/>
+      </g>
+      <g fill="url(#bd)" stroke="#cdf6ff" stroke-opacity=".5" stroke-width="2" stroke-linejoin="round">
+        <circle cx="70" cy="38" r="22"/>
+        <path d="M48 74 Q70 60 92 74 L87 150 Q70 162 53 150 Z"/>
+        <path d="M53 150 L87 150 L83 182 Q70 190 57 182 Z"/>
+      </g>
+      <circle cx="70" cy="104" r="9" fill="url(#heart)" opacity=".9"/>
+      <line x1="70" y1="62" x2="70" y2="150" stroke="#cdf6ff" stroke-opacity=".2" stroke-width="1.5"/>
+    </g></svg>`,
+
+  cell:`<svg viewBox="0 0 200 150"><defs>${grad('c1',[[0,'#cdeeff'],[.5,'#54aee0'],[1,'#1c5a82']])}${grad('c2',[[0,'#d9b6ff'],[1,'#5a2aa0']])}${grad('c3',[[0,'#ffd9a0'],[1,'#d06a18']])}</defs>
+    <ellipse cx="100" cy="78" rx="84" ry="60" fill="url(#c1)"/><ellipse cx="100" cy="78" rx="84" ry="60" fill="none" stroke="#eaf7ff" stroke-opacity=".35" stroke-width="2.5"/>
+    <circle cx="92" cy="72" r="27" fill="url(#c2)"/><circle cx="84" cy="64" r="8" fill="#36116b"/>
+    <ellipse cx="142" cy="64" rx="20" ry="11" fill="url(#c3)" transform="rotate(-20 142 64)"/>
+    <path d="M40 96 q14 -14 30 0 q14 14 28 0" fill="none" stroke="#bfe9ff" stroke-width="3" opacity=".7"/>
+    <circle cx="60" cy="58" r="6" fill="#bfe9ff" opacity=".8"/><circle cx="132" cy="106" r="7" fill="#bfe9ff" opacity=".7"/>
+    <ellipse cx="70" cy="50" rx="26" ry="13" fill="#fff" opacity=".12"/></svg>`,
+
+  microscope:`<svg viewBox="0 0 200 150"><defs>${grad('m1',[[0,'#dfe9ff'],[.5,'#7f9bd6'],[1,'#3a4f86']])}</defs>
+    <rect x="60" y="118" width="92" height="14" rx="7" fill="url(#m1)"/>
+    <path d="M104 36 q34 6 30 56 l-12 0 q4 -38 -24 -44 z" fill="url(#m1)"/>
+    <rect x="96" y="30" width="14" height="34" rx="6" fill="#9fc0ff"/><rect x="98" y="62" width="10" height="40" rx="5" fill="#cfe0ff"/>
+    <circle cx="103" cy="108" r="9" fill="#2dd4ff" opacity=".9"/><rect x="78" y="100" width="50" height="8" rx="4" fill="#6f8ad0"/>
+    <ellipse cx="90" cy="40" rx="22" ry="10" fill="#fff" opacity=".14"/></svg>`,
+
+  filaments:`<svg viewBox="0 0 200 150"><g stroke-linecap="round">
+      <path d="M30 130 C50 90 30 60 52 24" fill="none" stroke="#2dd4ff" stroke-width="5" opacity=".9"/>
+      <g fill="#2dd4ff"><circle cx="34" cy="118" r="4"/><circle cx="42" cy="98" r="4"/><circle cx="38" cy="78" r="4"/><circle cx="46" cy="58" r="4"/><circle cx="44" cy="38" r="4"/></g>
+      <path d="M96 132 C92 96 104 70 96 22" fill="none" stroke="#ff9d2e" stroke-width="9" opacity=".85"/>
+      <path d="M96 132 C92 96 104 70 96 22" fill="none" stroke="#ffd07a" stroke-width="3" opacity=".7" stroke-dasharray="2 7"/>
+      <g transform="translate(150,0)"><rect x="-13" y="20" width="26" height="112" rx="13" fill="#34e0a1" opacity=".85"/>
+      <line x1="0" y1="22" x2="0" y2="130" stroke="#0c855d" stroke-width="2"/><line x1="-8" y1="22" x2="-8" y2="130" stroke="#0c855d" stroke-width="1.5" opacity=".6"/><line x1="8" y1="22" x2="8" y2="130" stroke="#0c855d" stroke-width="1.5" opacity=".6"/></g>
+    </g></svg>`,
+
+  centriole:`<svg viewBox="0 0 200 150"><defs>${grad('ce',[[0,'#cfe6ff'],[1,'#2f6fa0']])}</defs>
+    <g transform="rotate(18 100 75)"><rect x="58" y="46" width="84" height="40" rx="14" fill="url(#ce)"/>
+    <g stroke="#0a3a5c" stroke-width="2">${Array.from({length:9}).map((_,i)=>{const x=64+i*8.6;return `<line x1="${x}" y1="48" x2="${x}" y2="84"/>`}).join('')}</g></g>
+    <g transform="rotate(-72 100 75)"><rect x="70" y="56" width="60" height="30" rx="11" fill="url(#ce)" opacity=".92"/></g>
+    <ellipse cx="90" cy="56" rx="22" ry="9" fill="#fff" opacity=".14"/></svg>`,
+
+  endomembrane:`<svg viewBox="0 0 200 150"><defs>${grad('e1',[[0,'#ffe0b0'],[1,'#c2701a']])}</defs>
+    <g fill="none" stroke="url(#e1)" stroke-width="10" stroke-linecap="round" opacity=".92">
+    <path d="M40 36 q60 -10 120 6"/><path d="M40 56 q60 -10 120 6"/><path d="M44 76 q56 -10 112 6"/><path d="M52 96 q48 -8 96 6"/></g>
+    <g fill="#ffe9c8">${[44,70,150,120].map((x,i)=>`<circle cx="${x}" cy="${120-i*4}" r="${5+i}"/>`).join('')}</g>
+    <ellipse cx="80" cy="34" rx="40" ry="9" fill="#fff" opacity=".14"/></svg>`,
+
+  nucleus:`<svg viewBox="0 0 200 150"><defs>${grad('n1',[[0,'#e7c8ff'],[.5,'#9a5be0'],[1,'#4a1f86']])}${grad('n2',[[0,'#ffd0ec'],[1,'#a8246f']])}</defs>
+    <circle cx="100" cy="76" r="62" fill="url(#n1)"/><circle cx="100" cy="76" r="62" fill="none" stroke="#e9d4ff" stroke-width="3" opacity=".7"/><circle cx="100" cy="76" r="55" fill="none" stroke="#e9d4ff" stroke-width="2" opacity=".4"/>
+    ${Array.from({length:10}).map((_,i)=>{const a=i/10*6.283;return `<circle cx="${100+58*Math.cos(a)}" cy="${76+58*Math.sin(a)}" r="3.4" fill="#1c0a3a"/>`}).join('')}
+    <circle cx="92" cy="70" r="20" fill="url(#n2)"/>
+    <g stroke="#3a166e" stroke-width="2.4" opacity=".55" fill="none"><path d="M70 96 q18 -8 30 4"/><path d="M112 58 q12 8 22 2"/></g>
+    <ellipse cx="82" cy="46" rx="26" ry="11" fill="#fff" opacity=".13"/></svg>`,
+
+  cellcycle:`<svg viewBox="0 0 200 150"><defs>${grad('cc',[[0,'#cfe6ff'],[1,'#2f6fa0']])}</defs>
+    <circle cx="100" cy="75" r="50" fill="none" stroke="url(#cc)" stroke-width="16" stroke-linecap="round" stroke-dasharray="180 314" transform="rotate(-90 100 75)"/>
+    <circle cx="100" cy="75" r="50" fill="none" stroke="#ff9d2e" stroke-width="16" stroke-linecap="round" stroke-dasharray="70 314" transform="rotate(120 100 75)" opacity=".9"/>
+    <polygon points="150,68 150,82 162,75" fill="#ff9d2e"/>
+    <circle cx="100" cy="75" r="26" fill="url(#cc)" opacity=".85"/><text x="100" y="81" font-size="20" fill="#eaf7ff" text-anchor="middle" font-family="sans-serif" font-weight="700">M</text></svg>`,
+
+  mito:`<svg viewBox="0 0 200 150"><defs>${grad('mi',[[0,'#ffd9a0'],[.5,'#f08a2a'],[1,'#a2430a']])}</defs>
+    <ellipse cx="100" cy="75" rx="86" ry="48" fill="url(#mi)"/><ellipse cx="100" cy="75" rx="86" ry="48" fill="none" stroke="#ffe9c8" stroke-width="3" opacity=".55"/>
+    <g fill="none" stroke="#9a3c08" stroke-width="6" stroke-linecap="round" opacity=".8">
+    <path d="M34 60 q22 18 0 36"/><path d="M70 54 q22 22 0 44"/><path d="M106 54 q22 22 0 44"/><path d="M142 58 q20 18 0 36"/></g>
+    <ellipse cx="78" cy="50" rx="34" ry="12" fill="#fff" opacity=".16"/></svg>`,
+
+  membrane:`<svg viewBox="0 0 200 150"><defs>${grad('mb',[[0,'#9af0ff'],[1,'#0a6f9c']])}${grad('pr',[[0,'#ffe0b0'],[1,'#c2701a']])}</defs>
+    <g fill="url(#mb)">${Array.from({length:11}).map((_,i)=>`<circle cx="${14+i*17}" cy="50" r="8"/>`).join('')}</g>
+    <g stroke="#2a89ad" stroke-width="3" stroke-linecap="round">${Array.from({length:11}).map((_,i)=>`<line x1="${14+i*17}" y1="58" x2="${14+i*17}" y2="74"/>`).join('')}</g>
+    <g fill="url(#mb)">${Array.from({length:11}).map((_,i)=>`<circle cx="${14+i*17}" cy="100" r="8"/>`).join('')}</g>
+    <g stroke="#2a89ad" stroke-width="3" stroke-linecap="round">${Array.from({length:11}).map((_,i)=>`<line x1="${14+i*17}" y1="92" x2="${14+i*17}" y2="76"/>`).join('')}</g>
+    <rect x="92" y="40" width="26" height="70" rx="13" fill="url(#pr)"/>
+    <g stroke="#34e0a1" stroke-width="2.5" fill="none" opacity=".85"><path d="M105 40 q6 -12 16 -8"/><path d="M105 40 q-4 -12 -14 -6"/></g></svg>`,
+
+  ear:`<svg viewBox="0 0 200 150"><defs>${grad('ea',[[0,'#ffe0ea'],[.5,'#ff8fb5'],[1,'#b03a66']])}${grad('co',[[0,'#d6fff0'],[1,'#0c855d']])}</defs>
+    <path d="M96 18 C58 14 40 48 46 84 C50 110 72 122 78 104 C82 92 70 86 74 70 C78 52 100 50 104 70" fill="none" stroke="url(#ea)" stroke-width="13" stroke-linecap="round"/>
+    <path d="M150 96 m0 -2 a2 2 0 1 1 -0.1 0 M150 96 m0 -10 a10 10 0 1 1 -0.1 0 M150 96 m0 -18 a18 18 0 1 1 -0.1 0 M150 96 m0 -26 a26 26 0 1 1 -0.1 0" fill="none" stroke="url(#co)" stroke-width="6" stroke-linecap="round" opacity=".95"/>
+    <line x1="104" y1="78" x2="126" y2="86" stroke="#ffd07a" stroke-width="5" stroke-linecap="round"/>
+    <g stroke="#8affc9" stroke-width="3" stroke-linecap="round">${Array.from({length:5}).map((_,i)=>`<line x1="${150}" y1="${78-i*3}" x2="${150}" y2="${70-i*3}"/>`).join('')}</g></svg>`,
+
+  polarity:`<svg viewBox="0 0 200 150"><defs>${grad('po',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <rect x="70" y="20" width="60" height="112" rx="14" fill="url(#po)"/>
+    <g stroke="#34e0a1" stroke-width="4" stroke-linecap="round">${Array.from({length:7}).map((_,i)=>`<line x1="${78+i*8}" y1="20" x2="${78+i*8}" y2="8"/>`).join('')}</g>
+    <circle cx="100" cy="72" r="16" fill="#9a5be0"/>
+    <line x1="40" y1="132" x2="160" y2="132" stroke="#ff9d2e" stroke-width="5" stroke-linecap="round"/>
+    <text x="150" y="18" font-size="11" fill="#9af0ff" font-family="sans-serif">apical</text><text x="150" y="138" font-size="11" fill="#ffd07a" font-family="sans-serif">basal</text></svg>`,
+
+  apical:`<svg viewBox="0 0 200 150"><defs>${grad('ap',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <rect x="26" y="74" width="148" height="62" rx="12" fill="url(#ap)"/>
+    <g stroke="#9af0ff" stroke-width="6" stroke-linecap="round">${Array.from({length:13}).map((_,i)=>`<line x1="${34+i*11}" y1="74" x2="${34+i*11}" y2="34"/>`).join('')}</g>
+    <g stroke="#34e0a1" stroke-width="3" stroke-linecap="round" fill="none"><path d="M70 36 q4 -16 12 -20"/><path d="M120 36 q5 -18 14 -22"/></g>
+    <g fill="#36116b">${Array.from({length:4}).map((_,i)=>`<circle cx="${48+i*36}" cy="112" r="9"/>`).join('')}</g></svg>`,
+
+  junctions:`<svg viewBox="0 0 200 150"><defs>${grad('ju',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <rect x="40" y="14" width="40" height="122" rx="12" fill="url(#ju)"/><rect x="120" y="14" width="40" height="122" rx="12" fill="url(#ju)"/>
+    <g stroke="#ff5fa2" stroke-width="4"><line x1="80" y1="30" x2="120" y2="30"/><line x1="80" y1="38" x2="120" y2="38"/></g>
+    <g><circle cx="100" cy="72" r="12" fill="#34e0a1"/><line x1="80" y1="72" x2="120" y2="72" stroke="#34e0a1" stroke-width="4"/></g>
+    <g stroke="#ffd07a" stroke-width="3"><line x1="84" y1="108" x2="116" y2="108"/><line x1="84" y1="116" x2="116" y2="116"/><rect x="92" y="102" width="16" height="20" rx="4" fill="#ffd07a" opacity=".5"/></g></svg>`,
+
+  transport:`<svg viewBox="0 0 200 150"><defs>${grad('tr',[[0,'#9af0ff'],[1,'#0a6f9c']])}</defs>
+    <g fill="url(#tr)">${Array.from({length:11}).map((_,i)=>`<circle cx="${14+i*17}" cy="62" r="8"/><circle cx="${14+i*17}" cy="100" r="8"/>`).join('')}</g>
+    <path d="M100 14 L100 44 M92 36 L100 46 L108 36" stroke="#34e0a1" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="100" cy="26" r="6" fill="#34e0a1"/>
+    <path d="M150 120 L150 92 M142 100 L150 90 L158 100" stroke="#ff9d2e" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="150" cy="132" r="6" fill="#ff9d2e"/></svg>`,
+
+  osmosis:`<svg viewBox="0 0 200 150"><defs>${grad('os',[[0,'#cdeeff'],[.6,'#54aee0'],[1,'#1c5a82']])}</defs>
+    <circle cx="100" cy="76" r="52" fill="url(#os)"/><circle cx="100" cy="76" r="52" fill="none" stroke="#eaf7ff" stroke-width="3" opacity=".5"/>
+    <g fill="#9af0ff">${[[80,60],[112,66],[96,92],[120,90],[78,88]].map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4"/>`).join('')}</g>
+    <g stroke="#34e0a1" stroke-width="3.5" fill="none" stroke-linecap="round"><path d="M22 60 L52 70 M44 62 L54 71 L43 76"/><path d="M178 92 L148 82 M156 90 L146 81 L157 76"/></g>
+    <ellipse cx="84" cy="50" rx="24" ry="10" fill="#fff" opacity=".15"/></svg>`,
+
+  endo:`<svg viewBox="0 0 200 150"><defs>${grad('en',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <path d="M30 132 Q30 60 70 50 Q92 44 96 22 Q104 44 126 50 Q170 60 170 132 Z" fill="url(#en)"/>
+    <circle cx="100" cy="34" r="13" fill="#ff5fa2"/><circle cx="100" cy="100" r="14" fill="#9af0ff" opacity=".5"/>
+    <ellipse cx="70" cy="70" rx="22" ry="10" fill="#fff" opacity=".12"/></svg>`,
+
+  epithelium:`<svg viewBox="0 0 200 150"><defs>${grad('ep',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <g fill="url(#ep)" stroke="#eaf7ff" stroke-opacity=".3" stroke-width="2">
+    ${[0,1,2,3].map(i=>`<rect x="${24+i*40}" y="30" width="34" height="40" rx="9"/>`).join('')}
+    ${[0,1,2,3].map(i=>`<rect x="${24+i*40}" y="74" width="34" height="34" rx="9" opacity=".85"/>`).join('')}</g>
+    <g fill="#36116b">${[0,1,2,3].map(i=>`<circle cx="${41+i*40}" cy="50" r="7"/>`).join('')}</g>
+    <line x1="18" y1="116" x2="182" y2="116" stroke="#ff9d2e" stroke-width="6" stroke-linecap="round"/>
+    <text x="100" y="138" font-size="10" fill="#ffd07a" text-anchor="middle" font-family="sans-serif">membrana basal</text></svg>`,
+
+  gland:`<svg viewBox="0 0 200 150"><defs>${grad('gl',[[0,'#ffd9a0'],[1,'#c2701a']])}</defs>
+    <g fill="url(#gl)" stroke="#ffe9c8" stroke-opacity=".4" stroke-width="2">
+    ${Array.from({length:8}).map((_,i)=>{const a=i/8*6.283;return `<circle cx="${68+24*Math.cos(a)}" cy="${66+24*Math.sin(a)}" r="13"/>`}).join('')}</g>
+    <circle cx="68" cy="66" r="13" fill="#a2430a"/>
+    <path d="M80 66 Q140 70 168 120" stroke="url(#gl)" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <path d="M80 66 Q140 70 168 120" stroke="#5a2a05" stroke-width="3" fill="none" opacity=".4"/></svg>`,
+
+  matrix:`<svg viewBox="0 0 200 150"><defs>${grad('ma',[[0,'#cdeeff'],[1,'#1f6f9c']])}</defs>
+    <rect x="44" y="14" width="112" height="74" rx="14" fill="url(#ma)"/>
+    <g stroke="#34e0a1" stroke-width="5" stroke-linecap="round">${Array.from({length:7}).map((_,i)=>`<line x1="${56+i*15}" y1="88" x2="${56+i*15}" y2="104"/>`).join('')}</g>
+    <line x1="30" y1="110" x2="170" y2="110" stroke="#ff9d2e" stroke-width="7" stroke-linecap="round"/>
+    <text x="100" y="134" font-size="10" fill="#ffd07a" text-anchor="middle" font-family="sans-serif">matriz / lâmina basal</text>
+    <ellipse cx="80" cy="34" rx="30" ry="11" fill="#fff" opacity=".13"/></svg>`,
+};
+
+/* ---------------- DADOS (fiéis aos slides) ---------------- */
+const DATA = {
+  overview:{ name:"O Corpo & a Biomorfologia", sub:"Biomorfologia", illo:"body", chip:"Comece por aqui",
+    blurb:"Toda esta jornada nasce de uma ideia: o corpo é feito de células, organizadas em tecidos. Aqui você mergulha nelas.",
+    sections:[
+      {h:"Biomorfologia (a disciplina)",html:`<p><em>Bios</em> = vida · <em>morphé</em> = forma · <em>logos</em> = estudo. É o estudo da <strong>forma dos seres vivos</strong>, em três frentes:</p>
+        <ul><li><span class="tag">Biologia Celular (Citologia)</span> — estrutura e função das células.</li>
+        <li><span class="tag">Histologia</span> — estrutura e função dos tecidos (células + matriz).</li>
+        <li><span class="tag">Embriologia</span> — desenvolvimento do embrião, da fecundação ao nascimento.</li></ul>`},
+      {h:"Como navegar",html:`<ul><li>O <strong>corpo</strong> é o mapa. Cada <strong>região luminosa</strong> é uma aula.</li>
+        <li>Clique numa região para <strong>mergulhar</strong> na estrutura (a célula, o tecido, a cóclea…).</li>
+        <li>Clique nas <strong>estruturas flutuantes</strong> para abrir cada tema.</li>
+        <li>Em cada tema há um <strong>"Teste-se"</strong>: toque na pergunta para desvendar a resposta.</li>
+        <li>Temas estudados ganham um ✓ — complete o corpo todo! 🎉</li></ul>`}
+    ],
+    cards:[
+      {q:"Quais são as 3 vertentes da Biomorfologia?",a:"<strong>Citologia</strong> (células), <strong>Histologia</strong> (tecidos) e <strong>Embriologia</strong> (desenvolvimento)."},
+      {q:"O que define uma célula?",a:"É a <strong>menor unidade funcional independente</strong> de um ser vivo."}
+    ]
+  },
+  planets:[
+    /* ====================== AULA 1 — PEITO ====================== */
+    { id:"p1", name:"Célula & Citoesqueleto", short:"Aula 1", theme:"p1", illo:"cell",
+      region:{ name:"Peito · a célula", tag:"a unidade da vida", top:"30%", side:"right" },
+      core:"a célula", blurb:"Os fundamentos: o que é célula, sua história, suas peças — e o esqueleto interno que dá forma e movimento.",
+      moons:[
+        { name:"Biomorfologia & Teoria Celular", short:"a origem", illo:"cell",
+          blurb:"De Leeuwenhoek aos três postulados que fundam toda a biologia moderna.",
+          sections:[
+            {h:"Descoberta da célula",html:`<ul>
+              <li><strong>Antonie van Leeuwenhoek</strong> (1632–1723) — primeiro a ver células vivas ("animálculos"); criou o <span class="tag">microscópio simples</span> (1 lente).</li>
+              <li><strong>Robert Hooke</strong> (1635–1703) — observou cortiça e cunhou o termo <span class="tag">"células"</span> (do latim <em>cella</em>, pequena sala); microscópio composto.</li></ul>`},
+            {h:"A Teoria Celular (a 'trindade')",html:`<ul>
+              <li><strong>Schleiden</strong> (1838) — toda planta é feita de células.</li>
+              <li><strong>Schwann</strong> (1839) — todo animal é feito de células.</li>
+              <li><strong>Virchow</strong> (1855) — <em>"Omnis cellula e cellula"</em>: toda célula vem de outra.</li></ul>`},
+            {h:"Os 3 postulados",html:`<ul><li>Todo ser vivo é composto por uma ou mais células.</li>
+              <li>A célula é a menor unidade capaz de manter a vida sozinha.</li>
+              <li>Toda célula surge de outra célula preexistente.</li></ul>`}
+          ],
+          cards:[
+            {q:"Quem cunhou o termo 'célula' e por quê?",a:"<strong>Robert Hooke</strong>, ao ver os compartimentos da cortiça que lembravam pequenas salas (<em>cella</em>)."},
+            {q:"O que significa 'Omnis cellula e cellula'?",a:"Frase de <strong>Virchow</strong>: toda célula se origina de outra preexistente."},
+            {q:"Quem propôs que animais e plantas são feitos de células?",a:"<strong>Schwann</strong> (animais) e <strong>Schleiden</strong> (plantas)."}
+          ]},
+        { name:"Anatomia da Célula", short:"composição", illo:"membrane",
+          blurb:"Do que é feita, seus 4 constituintes básicos e a divisão pro/eucarionte.",
+          sections:[
+            {h:"Composição química",html:`<ul><li><strong>Água</strong> — solvente universal e termorregulação.</li><li><strong>Sais minerais</strong> — equilíbrio iônico, cofatores.</li>
+              <li><strong>Lipídios</strong> — reserva, membranas, sinalização.</li><li><strong>Ácidos nucleicos</strong> — informação genética.</li>
+              <li><strong>Carboidratos</strong> — energia, reserva, estrutura.</li><li><strong>Proteínas</strong> — catálise, estrutura, transporte, regulação.</li></ul>`},
+            {h:"4 constituintes básicos",html:`<p>Membrana plasmática · Citoplasma · Cromossomos (DNA) · Ribossomos.</p>`},
+            {h:"Procarionte × Eucarionte",html:`<ul><li><span class="tag">Procarionte</span> — <strong>sem</strong> núcleo individualizado e <strong>sem</strong> organelas. Ex.: bactérias.</li>
+              <li><span class="tag">Eucarionte</span> — material genético em núcleo + organelas. Ex.: animais, vegetais, fungos, protistas.</li></ul>`}
+          ],
+          cards:[
+            {q:"Diferença essencial entre procarionte e eucarionte?",a:"O <strong>eucarionte</strong> tem núcleo individualizado e organelas membranosas; o <strong>procarionte</strong> não tem nenhum dos dois."},
+            {q:"Quais são os 4 constituintes básicos de toda célula?",a:"<strong>Membrana plasmática, citoplasma, cromossomos (DNA) e ribossomos.</strong>"}
+          ]},
+        { name:"Tour de Organelas", short:"as peças", illo:"endomembrane",
+          blurb:"Um sobrevoo rápido por cada compartimento e sua função.",
+          sections:[
+            {h:"As organelas e o que fazem",html:`<ul>
+              <li><strong>Núcleo</strong> — guarda o material genético; o nucléolo faz ribossomos.</li>
+              <li><strong>Ribossomos</strong> — síntese de proteínas.</li>
+              <li><strong>RE rugoso</strong> — com ribossomos → síntese proteica.</li>
+              <li><strong>RE liso</strong> — lipídios, detoxificação, estoque de cálcio.</li>
+              <li><strong>Complexo de Golgi</strong> — empacota e endereça; forma lisossomos.</li>
+              <li><strong>Lisossomos</strong> — digestão intracelular (heterofagia e autofagia).</li>
+              <li><strong>Peroxissomos</strong> — reações oxidativas.</li>
+              <li><strong>Mitocôndrias</strong> — respiração celular, termogênese, apoptose.</li>
+              <li><strong>Centríolos</strong> — divisão celular; formam cílios e flagelos.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual organela origina os lisossomos?",a:"O <strong>Complexo de Golgi</strong>."},
+            {q:"Diferença entre RE rugoso e liso?",a:"<strong>Rugoso</strong> tem ribossomos (proteínas); <strong>liso</strong> não tem (lipídios, detoxificação, cálcio)."},
+            {q:"O que é heterofagia × autofagia?",a:"Heterofagia = digerir material <strong>externo</strong>; autofagia = reciclar material <strong>interno</strong>."}
+          ]},
+        { name:"Microscopia", short:"como vemos", illo:"microscope",
+          blurb:"As ferramentas que revelam o invisível — e seus limites de resolução.",
+          sections:[
+            {h:"Conceito-chave",html:`<p><strong>Limite de resolução</strong>: menor distância entre dois pontos ainda vistos como separados. Depende do comprimento de onda (λ) e da abertura numérica.</p>`},
+            {h:"Os microscópios",html:`<ul>
+              <li><strong>Óptico</strong> — resolução ~0,2 µm; aumento = oculares × objetivas.</li>
+              <li><strong>Fluorescência</strong> — absorve luz de maior energia e emite de menor; marca estruturas específicas.</li>
+              <li><strong>Eletrônico de transmissão (MET)</strong> — ~0,1 nm; "elétron-denso" (escuro) e "elétron-lucente" (claro).</li>
+              <li><strong>Eletrônico de varredura (MEV)</strong> — imagens pseudo-3D de superfícies.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual microscópio dá imagens pseudo-3D de superfícies?",a:"O <strong>microscópio eletrônico de varredura (MEV)</strong>."},
+            {q:"O que significa 'elétron-denso'?",a:"Região <strong>escura</strong> no MET — interage mais com os elétrons."}
+          ]},
+        { name:"Citoesqueleto: 3 Filamentos", short:"visão geral", illo:"filaments",
+          blurb:"A rede dinâmica de proteínas que dá forma, organiza e move a célula.",
+          sections:[
+            {h:"Conceito & funções",html:`<p>Rede <strong>dinâmica</strong> de filamentos no citoplasma das eucariontes, capaz de se reorganizar rápido.</p>
+              <ul><li>Manter a forma e organizar organelas.</li><li>Transporte interno e movimentos.</li><li>Divisão celular e ancoragem de junções.</li></ul>`},
+            {h:"Os três sistemas",html:`<ul>
+              <li><span class="tag">Microfilamentos</span> — actina · ~7 nm · os mais finos.</li>
+              <li><span class="tag">Filamentos intermediários</span> — várias proteínas · ~10 nm · os mais resistentes.</li>
+              <li><span class="tag">Microtúbulos</span> — tubulina (α e β) · ~25 nm · os mais grossos.</li></ul>`}
+          ],
+          cards:[
+            {q:"Ordene os 3 filamentos do mais fino ao mais grosso.",a:"<strong>Microfilamentos (7 nm) → intermediários (10 nm) → microtúbulos (25 nm).</strong>"},
+            {q:"Qual filamento é o campeão de resistência mecânica?",a:"Os <strong>filamentos intermediários</strong>."}
+          ]},
+        { name:"Microfilamentos (Actina)", short:"7 nm", illo:"filaments",
+          blurb:"Os mais finos: contração, forma e movimento.",
+          sections:[
+            {h:"Estrutura",html:`<ul><li>Polímero de <strong>actina G</strong> (monômero) → <strong>actina F</strong> (filamento), em hélice.</li>
+              <li>Abundantes na <strong>região cortical</strong>.</li>
+              <li>Polaridade: <strong>(+)</strong> cresce rápido, <strong>(–)</strong> devagar; dinâmica depende de <strong>ATP</strong>.</li></ul>`},
+            {h:"Funções",html:`<ul><li>Forma celular e contração muscular (actina + <strong>miosina</strong>).</li>
+              <li>Formação de <strong>microvilosidades</strong>.</li><li>Citocinese e locomoção (pseudópodes).</li></ul>`}
+          ],
+          cards:[
+            {q:"Actina G × actina F?",a:"<strong>G</strong> = monômero globular; <strong>F</strong> = filamento polimerizado (hélice)."},
+            {q:"Qual proteína se associa à actina na contração muscular?",a:"A <strong>miosina</strong>."}
+          ]},
+        { name:"Filamentos Intermediários", short:"10 nm", illo:"filaments",
+          blurb:"Os cabos de resistência mecânica — e os tipos que importam para a fono.",
+          sections:[
+            {h:"Característica & montagem",html:`<p>Alta <strong>resistência mecânica</strong>, estáveis. Montagem: α-hélice → dímeros → tetrâmeros → protofilamento.</p>`},
+            {h:"Tipos principais",html:`<ul>
+              <li><strong>Queratinas</strong> — células epiteliais; unhas, pelos, chifres.</li>
+              <li><strong>Vimentina</strong> — células de origem mesenquimal.</li>
+              <li><strong>Desmina</strong> — células musculares (lisa, esquelética, miocárdio).</li>
+              <li><strong>GFAP</strong> — glia: <strong>astrócitos e células de Schwann</strong>.</li>
+              <li><strong>Neurofilamentos</strong> — corpo e axônios dos <strong>neurônios</strong>.</li>
+              <li><strong>Laminas A, B, C</strong> — lâmina nuclear.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual filamento intermediário está nos neurônios e na glia?",a:"<strong>Neurofilamentos</strong> (neurônios) e <strong>GFAP</strong> (astrócitos e células de Schwann) — base estrutural do sistema nervoso ligado à audição e à fala."},
+            {q:"Onde encontramos queratina?",a:"Nas <strong>células epiteliais</strong>: unhas, pelos, chifres."},
+            {q:"Para que servem as laminas?",a:"Formam a <strong>lâmina nuclear</strong>, reforçando o envelope do núcleo."}
+          ]},
+        { name:"Microtúbulos & Centríolos", short:"25 nm", illo:"centriole",
+          blurb:"Os trilhos da célula: transporte, fuso mitótico, cílios — e os motores que correm sobre eles.",
+          sections:[
+            {h:"Microtúbulos",html:`<ul><li>Tubos ocos de <strong>tubulina α e β</strong>; 13 protofilamentos.</li>
+              <li><strong>Instabilidade dinâmica</strong> (depende de <strong>GTP</strong>).</li>
+              <li>Funções: transporte de vesículas, <strong>fuso mitótico</strong>, base de cílios e flagelos.</li></ul>`},
+            {h:"Centríolos & Centrossomo (MTOC)",html:`<ul><li>Centríolo = <strong>9 trincas</strong> de microtúbulos.</li>
+              <li>Centrossomo = 2 centríolos + material pericentriolar; <strong>organiza</strong> os microtúbulos.</li></ul>`},
+            {h:"Proteínas motoras",html:`<ul><li><strong>Cinesinas</strong> → extremidade (+).</li><li><strong>Dineínas</strong> → extremidade (–).</li></ul>`}
+          ],
+          cards:[
+            {q:"Cinesina e dineína vão para que direção?",a:"<strong>Cinesina → (+)</strong>; <strong>dineína → (–)</strong>."},
+            {q:"Qual a estrutura do centríolo?",a:"<strong>9 trincas</strong> de microtúbulos em cilindro."},
+            {q:"O que é instabilidade dinâmica?",a:"Os microtúbulos <strong>alternam rápido entre crescer e encurtar</strong> (via GTP)."}
+          ]}
+      ]},
+
+    /* ====================== AULA 2 — ABDÔMEN ====================== */
+    { id:"p2", name:"Organelas & Membrana", short:"Aula 2", theme:"p2", illo:"mito",
+      region:{ name:"Abdômen · as usinas", tag:"a maquinaria interna", top:"43%", side:"left" },
+      core:"as organelas", blurb:"A fábrica interna: endomembranas, núcleo, a usina mitocondrial e a fronteira que define a célula.",
+      moons:[
+        { name:"Sistema de Endomembranas", short:"RE · Golgi · lisossomo", illo:"endomembrane",
+          blurb:"Membranas internas interligadas que processam proteínas e lipídios.",
+          sections:[
+            {h:"Retículo Endoplasmático",html:`<p>Compreende cerca de <strong>metade</strong> de toda a membrana da célula.</p>
+              <ul><li><strong>REL (liso)</strong> — esteroides, colesterol, triglicerídeos; estoca <strong>cálcio</strong>; detoxifica nos hepatócitos (<span class="tag">citocromo P450</span>).</li>
+              <li><strong>RER (rugoso)</strong> — contínuo com o envoltório nuclear; ribossomos aderidos → <strong>síntese proteica</strong>.</li></ul>`},
+            {h:"Golgi & Lisossomos",html:`<ul><li><strong>Golgi</strong> — cisternas com face <strong>cis</strong> (entrada) e <strong>trans</strong> (saída); modifica e endereça proteínas.</li>
+              <li><strong>Lisossomos</strong> — enzimas hidrolíticas; <strong>digestão intracelular</strong>. Rota: RER → vesícula → Golgi → fica no citoplasma.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual enzima do REL detoxifica nos hepatócitos?",a:"O <strong>citocromo P450</strong>."},
+            {q:"Diferença entre as faces cis e trans do Golgi?",a:"<strong>Cis</strong> = entrada (perto do RER); <strong>trans</strong> = saída (perto da membrana)."},
+            {q:"O REL armazena qual íon importante para o músculo?",a:"O <strong>cálcio</strong>."}
+          ]},
+        { name:"Núcleo", short:"centro de controle", illo:"nucleus",
+          blurb:"Guarda o genoma e comanda a célula — sem nunca fabricar proteínas.",
+          sections:[
+            {h:"Função",html:`<p>Duplica o DNA e <strong>sintetiza e processa todos os tipos de RNA</strong>. <strong>Não</strong> sintetiza proteínas.</p>`},
+            {h:"Componentes",html:`<ul><li><strong>Envoltório nuclear</strong> — dupla membrana; a externa tem ribossomos.</li>
+              <li><strong>Lâmina nuclear</strong> — suporte interno e organização da cromatina.</li>
+              <li><strong>Cromatina</strong> — <span class="tag">eucromatina</span> (ativa) e <span class="tag">heterocromatina</span> (condensada).</li></ul>`},
+            {h:"Poros nucleares",html:`<ul><li>Pequenas moléculas passam passivamente; grandes precisam de sinal (<strong>NLS</strong>+importinas / <strong>NES</strong>+exportinas), regulado pelo gradiente de <strong>Ran</strong> (GTP→GDP).</li></ul>`}
+          ],
+          cards:[
+            {q:"O núcleo sintetiza proteínas?",a:"<strong>Não.</strong> Ele duplica o DNA e processa o RNA, exportado ao citoplasma."},
+            {q:"Eucromatina × heterocromatina?",a:"<strong>Eucromatina</strong> = descondensada e ativa; <strong>heterocromatina</strong> = condensada."},
+            {q:"O que dirige a entrada de moléculas grandes no núcleo?",a:"O sinal <strong>NLS</strong> reconhecido pelas <strong>importinas</strong>."}
+          ]},
+        { name:"Nucléolo & Ciclo Celular", short:"ribossomos + divisão", illo:"cellcycle",
+          blurb:"Onde nascem os ribossomos e como a célula decide se dividir.",
+          sections:[
+            {h:"Nucléolo",html:`<ul><li>Região <strong>não membranosa</strong> que <strong>produz ribossomos (RNAr)</strong>.</li>
+              <li>Seu tamanho é proporcional à <strong>síntese proteica</strong>.</li></ul>`},
+            {h:"Ciclo celular",html:`<ul><li><strong>Interfase</strong> (G1, S, G2) + <strong>divisão (M)</strong>; <strong>G0</strong> = não divide; 3 checkpoints.</li>
+              <li><strong>Ciclinas-CDKs</strong> controlam transições; <strong>p53</strong> ativa p21 e freia o ciclo sob dano no DNA.</li>
+              <li><strong>Mitose</strong> → células idênticas; <strong>Meiose</strong> → gametas com metade dos cromossomos.</li></ul>`}
+          ],
+          cards:[
+            {q:"O que o nucléolo produz?",a:"<strong>Ribossomos</strong> (RNAr)."},
+            {q:"Qual proteína freia o ciclo quando há dano no DNA?",a:"A <strong>p53</strong> (ativa a p21)."},
+            {q:"Mitose × meiose?",a:"<strong>Mitose</strong> = 2 células idênticas; <strong>meiose</strong> = gametas com metade dos cromossomos."}
+          ]},
+        { name:"Mitocôndria", short:"usina de ATP", illo:"mito",
+          blurb:"Gera energia, controla apoptose e produz calor — com DNA próprio.",
+          sections:[
+            {h:"Estrutura",html:`<ul><li><strong>Membrana externa</strong> (lisa) e <strong>interna</strong> dobrada em <strong>cristas</strong>.</li>
+              <li><strong>Espaço intermembrana</strong> e <strong>matriz</strong> (proteínas, ribossomos, RNAs e <strong>DNA circular</strong>).</li></ul>`},
+            {h:"Funções",html:`<ul><li>Gerar <strong>ATP</strong> (glicólise → ciclo do ácido cítrico → fosforilação oxidativa).</li>
+              <li><strong>Apoptose</strong> e <strong>termogênese</strong> (UCP-1 / termogenina).</li></ul>`},
+            {h:"Onde se concentram",html:`<ul><li><strong>Células ciliadas</strong> — região apical.</li><li><strong>Espermatozoide</strong> — peça intermediária.</li><li><strong>Gordura marrom</strong> — calor.</li></ul>`}
+          ],
+          cards:[
+            {q:"Por que as cristas importam?",a:"Aumentam a <strong>superfície da membrana interna</strong>, onde se produz ATP."},
+            {q:"Qual proteína faz a termogênese?",a:"A <strong>UCP-1 (termogenina)</strong>."},
+            {q:"A mitocôndria tem DNA próprio?",a:"Sim — <strong>DNA circular</strong> na matriz."}
+          ]},
+        { name:"Membrana Plasmática", short:"mosaico fluido", illo:"membrane",
+          blurb:"A fronteira viva: bicamada de lipídios com proteínas que flutuam e trabalham.",
+          sections:[
+            {h:"Modelo do mosaico fluido",html:`<p><strong>"Mosaico"</strong> = proteínas integrais que se locomovem; <strong>"fluido"</strong> = lipídios (com <strong>colesterol</strong>).</p>`},
+            {h:"Composição",html:`<ul><li><strong>Bicamada fosfolipídica</strong> — fosfolipídios <strong>anfipáticos</strong> (cabeça hidrofílica + cauda hidrofóbica).</li>
+              <li><strong>Proteínas integrais</strong> (atravessam) e <strong>periféricas</strong> (na superfície).</li></ul>`},
+            {h:"Funções das proteínas",html:`<ul><li>Transporte · enzimas · receptores · reconhecimento · comunicação (junções gap).</li></ul>`}
+          ],
+          cards:[
+            {q:"O que torna a membrana 'fluida'?",a:"Os lipídios, com destaque para o <strong>colesterol</strong>."},
+            {q:"O que é uma molécula anfipática?",a:"Tem <strong>cabeça hidrofílica</strong> e <strong>cauda hidrofóbica</strong>."},
+            {q:"Proteína integral × periférica?",a:"<strong>Integral</strong> atravessa a bicamada; <strong>periférica</strong> fica na superfície."}
+          ]},
+        { name:"Glicocálix", short:"a identidade", illo:"membrane",
+          blurb:"O 'crachá' de açúcares na face externa — reconhecimento, adesão e proteção.",
+          sections:[
+            {h:"O que é",html:`<p>Camada de <strong>carboidratos</strong> ligados a lipídios (<strong>glicolipídios</strong>) e proteínas (<strong>glicoproteínas</strong>).</p>`},
+            {h:"Funções",html:`<ul><li>Reconhecimento e adesão celular.</li><li>Proteção contra lesões.</li>
+              <li><strong>Determinação antigênica</strong> — define o <strong>grupo sanguíneo ABO</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"O glicocálix se relaciona a qual tipagem sanguínea?",a:"O <strong>sistema ABO</strong> — seus açúcares são determinantes antigênicos."},
+            {q:"De que é feito o glicocálix?",a:"De <strong>carboidratos</strong> ligados a lipídios e proteínas."}
+          ]}
+      ]},
+
+    /* ====================== AULA 3 — CABEÇA / OUVIDO ====================== */
+    { id:"p3", name:"Junções & Especializações", short:"Aula 3", theme:"p3", illo:"ear",
+      region:{ name:"Cabeça · audição", tag:"junções & a cóclea", top:"10%", side:"right" },
+      core:"a cóclea & as junções", blurb:"Como as células se prendem, se comunicam e modelam sua superfície — incluindo os estereocílios do ouvido.",
+      moons:[
+        { name:"Polaridade & Domínios", short:"apical · lateral · basal", illo:"polarity",
+          blurb:"Células polarizadas têm regiões com funções distintas.",
+          sections:[
+            {h:"Os três domínios",html:`<ul><li><span class="tag">Apical</span> — voltado para o <strong>lúmen</strong>; especializações (microvilos, cílios).</li>
+              <li><span class="tag">Lateral</span> — voltado para as vizinhas; junções.</li>
+              <li><span class="tag">Basal</span> — voltado para a <strong>lâmina basal</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"Quais são os 3 domínios de uma célula polarizada?",a:"<strong>Apical</strong> (lúmen), <strong>lateral</strong> (vizinhas) e <strong>basal</strong> (lâmina basal)."},
+            {q:"Em qual domínio ficam as junções?",a:"No domínio <strong>lateral</strong>."}
+          ]},
+        { name:"Especializações Apicais", short:"microvilos · cílios", illo:"apical",
+          blurb:"As projeções da superfície — e onde está o vínculo com a audição.",
+          sections:[
+            {h:"Tipos",html:`<ul>
+              <li><strong>Microvilosidades</strong> — projeções uniformes (eixo de <strong>microfilamentos</strong>); aumentam a superfície. Ex.: enterócito, túbulo renal.</li>
+              <li><strong>Estereocílios</strong> — longos, irregulares, imóveis; absorção/sensorial. Ex.: epidídimo e <span class="tag">ouvido interno</span>.</li>
+              <li><strong>Cílios</strong> — móveis; axonema <strong>9 + 2</strong>; movidos por <strong>dineína</strong>. Ex.: epitélio respiratório, tuba uterina.</li>
+              <li><strong>Flagelos</strong> — longos e únicos. Ex.: espermatozoide.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual especialização apical aparece no ouvido interno?",a:"Os <strong>estereocílios</strong> (longos, imóveis, sensoriais) — o vínculo direto com a audição."},
+            {q:"O que é o padrão '9 + 2'?",a:"A estrutura do <strong>axonema do cílio</strong>: 9 pares periféricos + 2 centrais."},
+            {q:"Qual proteína motora move os cílios?",a:"A <strong>dineína</strong>."}
+          ]},
+        { name:"Junções de Oclusão", short:"a vedação", illo:"junctions",
+          blurb:"O cinturão que sela o espaço entre células e controla o que passa.",
+          sections:[
+            {h:"Zônula de oclusão (tight junction)",html:`<ul><li>Cinturão na porção <strong>mais apical</strong> da superfície lateral.</li>
+              <li>Proteínas: <strong>claudinas, ocludinas, JAMs</strong>.</li>
+              <li>Função: <strong>selar</strong> o espaço e controlar a <strong>via paracelular</strong>; mantém polaridade e barreira (ex.: intestino).</li></ul>`}
+          ],
+          cards:[
+            {q:"Quais proteínas formam a junção de oclusão?",a:"<strong>Claudinas, ocludinas e JAMs.</strong>"},
+            {q:"Para que serve a zônula de oclusão?",a:"Selar o espaço entre células e <strong>controlar o fluxo paracelular</strong>."}
+          ]},
+        { name:"Junções de Adesão", short:"a ancoragem", illo:"junctions",
+          blurb:"Os 'rebites' que dão resistência mecânica: zônula aderente e desmossomos.",
+          sections:[
+            {h:"Zônula de adesão (aderente)",html:`<ul><li>Logo <strong>abaixo</strong> da zônula de oclusão.</li>
+              <li>Proteínas: <strong>caderinas</strong> (dependentes de cálcio), ligadas a <strong>microfilamentos</strong>.</li></ul>`},
+            {h:"Desmossomos (mácula de adesão)",html:`<ul><li>Junções <strong>pontuais</strong> muito resistentes.</li>
+              <li>Proteínas: <strong>desmogleínas e desmocolinas</strong> + adaptadoras; ligadas a <strong>filamentos intermediários</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"Caderinas dependem de qual íon?",a:"De <strong>cálcio</strong>."},
+            {q:"Desmossomo se ancora a qual citoesqueleto?",a:"Aos <strong>filamentos intermediários</strong> (a zônula aderente liga-se a microfilamentos)."},
+            {q:"Qual junção é pontual e dá resistência mecânica?",a:"O <strong>desmossomo</strong> (mácula de adesão)."}
+          ]},
+        { name:"Junções Comunicantes", short:"gap / nexo", illo:"junctions",
+          blurb:"Os canais que conectam diretamente o interior de duas células.",
+          sections:[
+            {h:"Gap junction",html:`<ul><li>Canais de <strong>conexinas</strong>; cada canal é um <strong>conexon</strong>.</li>
+              <li>Passagem de <strong>íons, pequenas moléculas e segundos mensageiros</strong>.</li>
+              <li>Importante na <strong>condução do impulso no músculo cardíaco</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"Como se chama o canal da junção comunicante e sua proteína?",a:"Canal = <strong>conexon</strong>; proteína = <strong>conexina</strong>."},
+            {q:"Em qual tecido a gap junction é crucial?",a:"No <strong>músculo cardíaco</strong>."}
+          ]},
+        { name:"Junções Célula-Matriz", short:"integrinas", illo:"matrix",
+          blurb:"Como a célula se ancora à matriz extracelular e sente forças.",
+          sections:[
+            {h:"Integrinas (a base)",html:`<p>Principais receptores de matriz; <strong>heterodímeros (α e β)</strong>. Ligam-se a <strong>fibronectina</strong> e <strong>laminina</strong>.</p>`},
+            {h:"Tipos",html:`<ul><li><strong>Hemidesmossomos</strong> — ligam a célula à <strong>lâmina basal</strong>; integrinas α6β4; ancoram em <strong>filamentos intermediários</strong>.</li>
+              <li><strong>Adesões focais</strong> — integrinas α5β1; ligadas a <strong>microfilamentos</strong>; fazem migração e <strong>mecanotransdução</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"Hemidesmossomo × adesão focal: a qual citoesqueleto cada um se ancora?",a:"<strong>Hemidesmossomo → filamentos intermediários</strong>; <strong>adesão focal → microfilamentos</strong>."},
+            {q:"O que são integrinas estruturalmente?",a:"<strong>Heterodímeros</strong> de subunidades α e β."}
+          ]}
+      ]},
+
+    /* ====================== AULA 4 — GARGANTA ====================== */
+    { id:"p4", name:"Transporte & Tecidos", short:"Aula 4", theme:"p4", illo:"epithelium",
+      region:{ name:"Garganta · tecidos", tag:"epitélio & glândulas", top:"19.5%", side:"left" },
+      core:"o tecido epitelial", blurb:"Como as substâncias atravessam a membrana e como as células se organizam em epitélios e glândulas.",
+      moons:[
+        { name:"Transporte Passivo", short:"sem gastar energia", illo:"transport",
+          blurb:"A favor do gradiente, sem ATP: osmose e difusão.",
+          sections:[
+            {h:"Osmose",html:`<p>Passagem de <strong>ÁGUA</strong> por membrana <strong>semipermeável</strong>, do meio menos para o mais concentrado. <em>Osmose = água.</em></p>`},
+            {h:"Difusão",html:`<ul><li><strong>Simples</strong> — passagem de <strong>soluto</strong> a favor do gradiente (apolares, O₂, CO₂). Ex.: hematose nos alvéolos.</li>
+              <li><strong>Facilitada</strong> — com <strong>proteínas carreadoras</strong>, sem energia (glicose, aminoácidos).</li></ul>`}
+          ],
+          cards:[
+            {q:"Na osmose, o que se move e para onde?",a:"A <strong>água</strong>, do meio <strong>menos</strong> para o <strong>mais</strong> concentrado."},
+            {q:"Difusão simples × facilitada?",a:"A <strong>facilitada</strong> usa <strong>proteínas carreadoras</strong> (solutos polares); ambas sem ATP."}
+          ]},
+        { name:"Tonicidade", short:"hemácias na solução", illo:"osmosis",
+          blurb:"O que acontece com a célula em meios mais ou menos concentrados.",
+          sections:[
+            {h:"Comportamento das hemácias",html:`<ul><li><span class="tag">Hipertônico</span> — <strong>perde água</strong> e murcha → <strong>plasmólise (crenação)</strong>.</li>
+              <li><span class="tag">Hipotônico</span> — <strong>ganha água</strong> e incha → <strong>plasmóptise (hemólise)</strong>.</li></ul>`}
+          ],
+          cards:[
+            {q:"Hemácia em meio hipotônico?",a:"<strong>Ganha água, incha e pode romper</strong> → plasmóptise (hemólise)."},
+            {q:"E em meio hipertônico?",a:"<strong>Perde água e murcha</strong> → plasmólise (crenação)."}
+          ]},
+        { name:"Transporte Ativo", short:"contra o gradiente", illo:"transport",
+          blurb:"Empurrar soluto 'morro acima' — exige energia.",
+          sections:[
+            {h:"Conceito",html:`<ul><li>Move solutos <strong>contra</strong> o gradiente (do menos para o mais concentrado).</li>
+              <li>Usa <strong>proteínas carreadoras</strong> e <strong>gasto de energia</strong>.</li>
+              <li>Exemplo: o <strong>H⁺</strong> bombeado contra o gradiente.</li></ul>`}
+          ],
+          cards:[
+            {q:"O que distingue o transporte ativo do passivo?",a:"O ativo vai <strong>contra o gradiente</strong> e <strong>gasta energia</strong>."},
+            {q:"Que íon o material cita como exemplo?",a:"O <strong>H⁺</strong> (próton)."}
+          ]},
+        { name:"Endocitose & Exocitose", short:"partículas grandes", illo:"endo",
+          blurb:"Engolir e expelir grandes volumes — sempre com gasto de energia.",
+          sections:[
+            {h:"Endocitose",html:`<ul><li><strong>Fagocitose</strong> — pseudópodes englobam a partícula formando o <strong>fagossomo</strong>. Ex.: células de defesa.</li>
+              <li><strong>Pinocitose</strong> — englobamento de <strong>líquidos</strong> por invaginação.</li></ul>`},
+            {h:"Exocitose",html:`<p>Vesículas se <strong>fundem à membrana</strong> e expelem o conteúdo.</p>`}
+          ],
+          cards:[
+            {q:"Fagocitose × pinocitose?",a:"<strong>Fagocitose</strong> engole sólidos (fagossomo); <strong>pinocitose</strong> engole líquidos."},
+            {q:"O que é exocitose?",a:"A <strong>fusão de vesículas à membrana</strong> para expelir conteúdo."}
+          ]},
+        { name:"Tecido Epitelial", short:"características", illo:"epithelium",
+          blurb:"Células justapostas sobre o conjuntivo — a barreira e a interface do corpo.",
+          sections:[
+            {h:"De onde vem o nome",html:`<p><em>Epi</em> (sobre) + <em>theleo</em> (papila): fica <strong>sobre o tecido conjuntivo</strong>. Ex.: epiderme sobre derme.</p>`},
+            {h:"Características gerais",html:`<ul><li>Pouca matriz; <strong>células justapostas</strong> com junções.</li>
+              <li><strong>Avascular</strong> — nutre-se por difusão; é inervado.</li>
+              <li>Apoiado na <strong>membrana basal</strong>; tem <strong>polaridade</strong> e especializações apicais.</li></ul>`}
+          ],
+          cards:[
+            {q:"O epitélio tem vasos próprios?",a:"<strong>Não — é avascular.</strong> Nutre-se por difusão a partir do conjuntivo."},
+            {q:"Sobre o que o epitélio se apoia?",a:"Sobre a <strong>membrana basal</strong>."}
+          ]},
+        { name:"Epitélio de Revestimento", short:"classificação", illo:"epithelium",
+          blurb:"Classificado por número de camadas e forma das células — com exemplos.",
+          sections:[
+            {h:"Quanto à forma",html:`<ul><li><strong>Pavimentoso</strong> · <strong>Cúbico</strong> · <strong>Prismático/cilíndrico</strong> · <strong>de Transição</strong>.</li></ul>`},
+            {h:"Quanto às camadas",html:`<ul><li><strong>Simples</strong> — 1 camada (ex.: vasos, alvéolos).</li>
+              <li><strong>Estratificado</strong> — 2+ camadas (ex.: pele).</li>
+              <li><strong>Pseudoestratificado</strong> — 1 camada, núcleos desalinhados (ex.: traqueia).</li>
+              <li><strong>de Transição</strong> — muda de globosa a alongada; elasticidade (ex.: bexiga).</li></ul>`},
+            {h:"Exemplos clássicos",html:`<ul><li><strong>Pseudoestratificado ciliado c/ caliciformes</strong> → traqueia (cigarro → <span class="tag">metaplasia</span>).</li>
+              <li><strong>Estratificado pavimentoso queratinizado</strong> → pele.</li>
+              <li><strong>Não queratinizado</strong> → boca, esôfago.</li>
+              <li><strong>Simples cilíndrico c/ microvilosidades</strong> → intestino.</li></ul>`}
+          ],
+          cards:[
+            {q:"Qual epitélio reveste a bexiga e por quê?",a:"O <strong>de transição</strong> — muda de globoso a alongado, dando elasticidade."},
+            {q:"O que é o pseudoestratificado?",a:"<strong>Uma camada</strong> de células de alturas diferentes (núcleos desalinhados). Ex.: traqueia."},
+            {q:"O que é metaplasia no epitélio respiratório?",a:"A troca do epitélio (ex.: cigarro) — pseudoestratificado pode virar estratificado."}
+          ]},
+        { name:"Tecido Glandular", short:"exócrinas & endócrinas", illo:"gland",
+          blurb:"Células especializadas em secretar — com ou sem ducto.",
+          sections:[
+            {h:"Destino da secreção",html:`<ul><li><strong>Exócrinas</strong> — por <strong>ductos</strong> (salivares, sudoríparas).</li>
+              <li><strong>Endócrinas</strong> — no <strong>sangue</strong>, sem ducto (hipófise, tireoide).</li>
+              <li><strong>Mistas</strong> — ambas (<strong>pâncreas</strong>). Unicelular: <strong>célula caliciforme</strong> (muco).</li></ul>`},
+            {h:"Exócrinas — classificação",html:`<ul><li><strong>Ductos</strong>: simples × compostas.</li>
+              <li><strong>Forma</strong>: tubulosas · acinosas · túbulo-acinosas.</li>
+              <li><strong>Secreção</strong>: mucosas · serosas · mistas.</li>
+              <li><strong>Eliminação</strong>: <span class="tag">merócrina</span> (sem dano) · <span class="tag">holócrina</span> (célula morre — sebácea) · <span class="tag">apócrina</span> (perde ápice — mamária).</li></ul>`},
+            {h:"Endócrinas — arranjo",html:`<ul><li><strong>Cordonais</strong> (adrenal, hipófise) · <strong>Foliculares</strong> (tireoide).</li></ul>`}
+          ],
+          cards:[
+            {q:"Exócrina × endócrina?",a:"<strong>Exócrina</strong> libera por ducto; <strong>endócrina</strong> lança no <strong>sangue</strong> (sem ducto)."},
+            {q:"Glândula holócrina — como secreta?",a:"A <strong>célula inteira morre e vira o produto</strong>. Ex.: sebácea."},
+            {q:"Por que o pâncreas é misto?",a:"Faz secreção <strong>endócrina</strong> (insulina/glucagon) e <strong>exócrina</strong> (suco pancreático)."}
+          ]}
+      ]}
+  ]
+};
+
+/* ---------------- ÁUDIO ---------------- */
+let audioOn=true, actx=null, master=null, ambGain=null;
+function initAudio(){
+  if(actx) return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext; actx=new AC();
+    master=actx.createGain(); master.gain.value=0.9; master.connect(actx.destination);
+    ambGain=actx.createGain(); ambGain.gain.value=0.0; ambGain.connect(master);
+    [98,146.83,196].forEach((f,i)=>{
+      const o=actx.createOscillator(); o.type='sine'; o.frequency.value=f;
+      const g=actx.createGain(); g.gain.value=i===0?0.045:0.02;
+      const lfo=actx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.05+i*0.03;
+      const lg=actx.createGain(); lg.gain.value=0.013; lfo.connect(lg).connect(g.gain); lfo.start();
+      o.connect(g).connect(ambGain); o.start();
+    });
+    ambGain.gain.setTargetAtTime(audioOn?0.5:0.0, actx.currentTime, 2);
+  }catch(e){ actx=null; }
+}
+function tone(o){
+  if(!audioOn||!actx) return; o=o||{};
+  const t0=actx.currentTime+(o.delay||0), dur=o.dur||0.15, rel=o.release!=null?o.release:0.08, att=o.attack!=null?o.attack:0.01;
+  const osc=actx.createOscillator(), g=actx.createGain();
+  osc.type=o.type||'sine'; osc.frequency.setValueAtTime(o.freq||440,t0);
+  if(o.glideTo) osc.frequency.exponentialRampToValueAtTime(o.glideTo,t0+dur);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(o.vol||0.15,t0+att);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+rel);
+  osc.connect(g).connect(master); osc.start(t0); osc.stop(t0+dur+rel+0.03);
+}
+const sfx={
+  hover:()=>tone({freq:560,dur:.045,type:'sine',vol:.04}),
+  dive:()=>{tone({freq:140,glideTo:440,dur:.40,type:'triangle',vol:.16});tone({freq:700,dur:.2,delay:.06,vol:.07});},
+  node:()=>{tone({freq:480,dur:.10,type:'sine',vol:.12});tone({freq:720,dur:.12,delay:.04,vol:.08,type:'triangle'});},
+  reveal:()=>{[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone({freq:f,dur:.16,delay:i*.06,type:'triangle',vol:.11}));},
+  back:()=>tone({freq:440,glideTo:200,dur:.30,type:'sine',vol:.12}),
+  close:()=>tone({freq:330,glideTo:170,dur:.20,type:'sine',vol:.10}),
+  start:()=>{[196,261.6,329.6,392].forEach((f,i)=>tone({freq:f,dur:.24,delay:i*.09,type:'triangle',vol:.13}));tone({freq:98,dur:.7,vol:.08});},
+  complete:()=>{[523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>tone({freq:f,dur:.3,delay:i*.10,type:'triangle',vol:.13}));}
+};
+
+/* ---------------- FUNDO: partículas biológicas em suspensão ---------------- */
+const cv=document.getElementById('space'), ctx=cv.getContext('2d');
+let cells=[], W=0,H=0, mouseX=0, mouseY=0;
+const HUES=['45,212,255','52,224,161','255,157,46','255,95,162','154,240,255'];
+function resizeCv(){
+  W=cv.width=innerWidth; H=cv.height=innerHeight;
+  const n=Math.min(70, Math.floor(W*H/26000)); cells=[];
+  for(let i=0;i<n;i++){
+    cells.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*16+5,
+      sp:Math.random()*0.18+0.05, drift:Math.random()*0.5+0.2, ph:Math.random()*6.28,
+      hue:HUES[(Math.random()*HUES.length)|0], a:Math.random()*0.20+0.06});
+  }
+}
+let tprev=0;
+function drawSpace(ts){
+  const dt=Math.min(50,(ts-tprev)||16); tprev=ts;
+  ctx.clearRect(0,0,W,H);
+  const ox=(mouseX-W/2)*0.01, oy=(mouseY-H/2)*0.01;
+  for(const c of cells){
+    c.y-=c.sp*dt*0.06; c.ph+=dt*0.0012; c.x+=Math.sin(c.ph)*c.drift*0.3;
+    if(c.y<-30){c.y=H+30; c.x=Math.random()*W;}
+    const px=c.x+ox*c.r*0.3, py=c.y+oy*c.r*0.3;
+    const g=ctx.createRadialGradient(px,py,0,px,py,c.r);
+    g.addColorStop(0,`rgba(${c.hue},${c.a})`); g.addColorStop(0.6,`rgba(${c.hue},${c.a*0.4})`); g.addColorStop(1,`rgba(${c.hue},0)`);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,c.r,0,6.2832); ctx.fill();
+    ctx.beginPath(); ctx.arc(px,py,c.r*0.55,0,6.2832); ctx.strokeStyle=`rgba(${c.hue},${c.a*0.5})`; ctx.lineWidth=1; ctx.stroke();
+  }
+  requestAnimationFrame(drawSpace);
+}
+window.addEventListener('resize',()=>{resizeCv(); sizeLinks(); if(view==='lesson') layoutCenter();});
+window.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
+resizeCv(); requestAnimationFrame(drawSpace);
+
+/* ---------------- ESTADO + NAVEGAÇÃO ---------------- */
+const stage=document.getElementById('stage');
+const linksCv=document.getElementById('links'), linksCtx=linksCv.getContext('2d');
+const backFab=document.getElementById('backFab'), backLabel=document.getElementById('backLabel');
+const hintFloat=document.getElementById('hintFloat'), topbar=document.getElementById('topbar');
+let view=null, activePlanet=null, orbits=[], raf=null, lastT=0, busy=false, cx=0, cy=0, tGlobal=0;
+
+function loadVisited(){ try{return JSON.parse(localStorage.getItem('bioatlas_visited')||'{}');}catch(e){return {};} }
+function saveVisited(){ try{localStorage.setItem('bioatlas_visited',JSON.stringify(visited));}catch(e){} }
+let visited=loadVisited();
+let totalMoons=DATA.planets.reduce((a,p)=>a+p.moons.length,0);
+
+function layoutCenter(){ const r=stage.getBoundingClientRect(); cx=r.width/2; cy=r.height/2; }
+function minDim(){ return Math.min(stage.clientWidth, stage.clientHeight); }
+function sizeLinks(){ linksCv.width=stage.clientWidth; linksCv.height=stage.clientHeight; }
+function clearStage(){ stage.innerHTML=''; orbits=[]; linksCtx.clearRect(0,0,linksCv.width,linksCv.height); }
+function themeVars(t){ return `--cm:var(--${t});--cl:var(--${t}l);--cd:var(--${t}d);--cg:var(--${t}g)`; }
+
+/* ---- HUB: CORPO HUMANO ---- */
+function renderHub(){
+  view='hub'; activePlanet=null; clearStage(); stopOrbit();
+  backFab.classList.remove('show');
+  hintFloat.textContent='Clique numa região do corpo para mergulhar';
+  hintFloat.classList.remove('hidden');
+
+  const wrap=document.createElement('div'); wrap.className='human-wrap';
+  const human=document.createElement('div'); human.className='human'; human.innerHTML=ILLO.body;
+  wrap.appendChild(human);
+
+  DATA.planets.forEach((p,i)=>{
+    const hs=document.createElement('div');
+    hs.className='hotspot '+p.region.side;
+    hs.style.top=p.region.top; hs.style.setProperty('--hc',`var(--${p.theme})`); hs.style.setProperty('--hg',`var(--${p.theme}g)`);
+    hs.innerHTML=`<div class="lead"></div><div class="dot"></div>
+      <div class="card"><div class="thumb">${ILLO[p.illo]}</div>
+        <div><div class="tag">${p.short}</div><div class="nm">${p.name}</div><div class="rg">${p.region.tag}</div></div></div>`;
+    tap(hs,()=>{ if(busy)return; sfx.dive(); enterLesson(i); });
+    hs.addEventListener('mouseenter',sfx.hover);
+    wrap.appendChild(hs);
+  });
+  const cap=document.createElement('div'); cap.className='hub-caption'; cap.textContent='4 regiões · 27 estruturas para desvendar';
+  wrap.appendChild(cap);
+  stage.appendChild(wrap);
+  updateProgress();
+}
+
+/* ---- CENA DA AULA ---- */
+function renderLesson(idx){
+  view='lesson'; activePlanet=idx; clearStage(); layoutCenter(); sizeLinks();
+  const p=DATA.planets[idx];
+  document.documentElement.style.setProperty('--accent',`var(--${p.theme})`);
+  backFab.classList.add('show');
+  hintFloat.textContent='Clique numa estrutura para abrir · ✓ = estudado';
+  hintFloat.classList.remove('hidden');
+
+  // núcleo central (estrutura anatômica)
+  const core=document.createElement('div'); core.className='core';
+  core.style.cssText+=';'+themeVars(p.theme)+`;--coreSize:${Math.max(150,minDim()*0.27)}px`;
+  core.innerHTML=ILLO[p.illo]+`<div class="core-title">${p.name}</div>`;
+  core.style.transform='translate(-50%,-50%)';
+  stage.appendChild(core);
+  orbits.push({static:true});
+
+  // nós (subtópicos) em 1-2 anéis, com flutuação orgânica
+  const md=minDim(), moons=p.moons;
+  const rings = moons.length<=6 ? [moons] : [moons.slice(0,Math.ceil(moons.length/2)), moons.slice(Math.ceil(moons.length/2))];
+  const ringR = rings.length===1 ? [md*0.36] : [md*0.275, md*0.42];
+  const ringSpeed = rings.length===1 ? [0.05] : [0.07, -0.045];
+
+  rings.forEach((group,ri)=>{
+    const orbit={ radius:ringR[ri], angle:ri*0.5, speed:ringSpeed[ri], members:[] };
+    group.forEach((m,mi)=>{
+      const gIdx = ri===0?mi:(rings[0].length+mi);
+      const node=document.createElement('div'); node.className='node';
+      node.style.cssText+=';'+themeVars(p.theme);
+      const sz=Math.max(46,md*0.075);
+      const ves=document.createElement('div'); ves.className='vesicle'; ves.style.width=sz+'px'; ves.style.height=sz+'px';
+      if(isVisited(p,m)) node.classList.add('visited');
+      const lab=document.createElement('div'); lab.className='label'; lab.textContent=m.name;
+      const sub=document.createElement('div'); sub.className='sub'; sub.textContent=m.short;
+      lab.appendChild(document.createElement('br')); lab.appendChild(sub);
+      node.appendChild(ves); node.appendChild(lab);
+      tap(node,()=>{ if(busy)return; sfx.node(); openMoon(idx,gIdx); });
+      node.addEventListener('mouseenter',sfx.hover);
+      stage.appendChild(node);
+      orbit.members.push({ el:node, offset:(mi/group.length)*6.2832, bob:Math.random()*6.28, bamp:6+Math.random()*8, x:0, y:0 });
+    });
+    orbits.push(orbit);
+  });
+  startOrbit();
+}
+
+/* ---- LOOP ORBITAL + LINKS ---- */
+function startOrbit(){ stopOrbit(); lastT=0; raf=requestAnimationFrame(orbitTick); }
+function stopOrbit(){ if(raf) cancelAnimationFrame(raf); raf=null; }
+function orbitTick(ts){
+  const dt=Math.min(50,(ts-lastT)||16)/1000; lastT=ts; tGlobal+=dt;
+  for(const o of orbits){
+    if(o.static||!o.members) continue;
+    o.angle+=o.speed*dt;
+    for(const m of o.members){
+      const a=o.angle+m.offset;
+      const rr=o.radius+Math.sin(tGlobal*0.8+m.bob)*m.bamp;
+      m.x=Math.cos(a)*rr; m.y=Math.sin(a)*rr*0.9+Math.sin(tGlobal*1.1+m.bob)*4;
+      m.el.style.transform=`translate(-50%,-50%) translate(${m.x}px,${m.y}px)`;
+    }
+  }
+  drawLinks();
+  raf=requestAnimationFrame(orbitTick);
+}
+function drawLinks(){
+  if(view!=='lesson') return;
+  linksCtx.clearRect(0,0,linksCv.width,linksCv.height);
+  const pulse=0.45+Math.sin(tGlobal*2)*0.18;
+  for(const o of orbits){
+    if(!o.members) continue;
+    for(const m of o.members){
+      const x2=cx+m.x, y2=cy+m.y;
+      const g=linksCtx.createLinearGradient(cx,cy,x2,y2);
+      g.addColorStop(0,`rgba(150,230,235,${0.05})`);
+      g.addColorStop(1,`rgba(150,230,235,${pulse*0.5})`);
+      linksCtx.strokeStyle=g; linksCtx.lineWidth=1.4;
+      linksCtx.beginPath(); linksCtx.moveTo(cx,cy);
+      const mx=(cx+x2)/2+Math.sin(tGlobal+m.bob)*8, my=(cy+y2)/2+Math.cos(tGlobal+m.bob)*8;
+      linksCtx.quadraticCurveTo(mx,my,x2,y2); linksCtx.stroke();
+      // pequena partícula correndo no filamento
+      const t=(Math.sin(tGlobal*1.3+m.bob)+1)/2;
+      const px=(1-t)*(1-t)*cx+2*(1-t)*t*mx+t*t*x2, py=(1-t)*(1-t)*cy+2*(1-t)*t*my+t*t*y2;
+      linksCtx.beginPath(); linksCtx.arc(px,py,2,0,6.2832); linksCtx.fillStyle=`rgba(200,250,255,${pulse})`; linksCtx.fill();
+    }
+  }
+}
+
+/* ---- TRANSIÇÕES (mergulho/zoom) ---- */
+function diveTo(fn, into){
+  if(busy) return; busy=true; stage.classList.add('busy');
+  hintFloat.classList.add('hidden'); linksCtx.clearRect(0,0,linksCv.width,linksCv.height);
+  stage.style.transition='opacity .5s ease, transform .55s cubic-bezier(.6,0,.4,1)';
+  stage.style.opacity='0'; stage.style.transform = into?'scale(1.7)':'scale(0.55)';
+  setTimeout(()=>{
+    stopOrbit(); fn();
+    stage.style.transition='none'; stage.style.opacity='0'; stage.style.transform= into?'scale(0.6)':'scale(1.45)';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      stage.style.transition='opacity .55s ease, transform .6s cubic-bezier(.2,.8,.2,1)';
+      stage.style.opacity='1'; stage.style.transform='scale(1)';
+      busy=false; stage.classList.remove('busy');
+    }));
+  },520);
+}
+function enterLesson(idx){ diveTo(()=>renderLesson(idx), true); }
+function backToBody(){ sfx.back(); diveTo(()=>{ document.documentElement.style.removeProperty('--accent'); renderHub(); }, false); }
+tap(backFab,backToBody);
+
+/* ---------------- MODAL ---------------- */
+const backdrop=document.getElementById('backdrop'), modal=document.getElementById('modal');
+function isVisited(p,m){ return !!visited[p.id+'::'+m.name]; }
+function markVisited(p,m){ const k=p.id+'::'+m.name; if(!visited[k]){ visited[k]=1; saveVisited(); updateProgress(); checkComplete(); } }
+
+function buildContent(item, theme){
+  const acc=`--mh-accent:var(--${theme});--mh-glow:var(--${theme}g)`;
+  let html=`<div class="modal-head" style="${acc}"><div class="glow"></div>
+      ${item.chip?`<span class="chip">${item.chip}</span>`:''}${ILLO[item.illo]||ILLO.cell}
+      <button class="modal-close" id="mClose" aria-label="Fechar">×</button></div>
+    <div class="modal-body" style="${acc}">
+      <h3 class="modal-title">${item.name}</h3><p class="modal-blurb">${item.blurb||''}</p>`;
+  (item.sections||[]).forEach(s=>{ html+=`<div class="sec"><h4>${s.h}</h4>${s.html}</div>`; });
+  if(item.cards&&item.cards.length){
+    html+=`<div class="quiz-title">🧠 Teste-se <span class="pill">toque para revelar</span></div>`;
+    item.cards.forEach(c=>{ html+=`<div class="fc"><div class="q"><span class="qm">?</span><span>${c.q}</span></div>
+      <div class="a"><div class="a-inner">${c.a}</div></div><div class="reveal-hint">▾ toque para desvendar a resposta</div></div>`; });
+  }
+  return html+`</div>`;
+}
+function showModal(item, theme){
+  modal.setAttribute('style', themeVars(theme));
+  modal.innerHTML=buildContent(item, theme);
+  backdrop.classList.add('open');
+  const b=modal.querySelector('.modal-body'); if(b) b.scrollTop=0;
+  tap(modal.querySelector('#mClose'),closeModal);
+  modal.querySelectorAll('.fc').forEach(fc=>tap(fc,()=>{
+    const op=!fc.classList.contains('open'); fc.classList.toggle('open'); if(op) sfx.reveal();
+  }));
+}
+function openMoon(pi,mi){ const p=DATA.planets[pi], m=p.moons[mi]; showModal(m,p.theme); markVisited(p,m); refreshBadges(); }
+function openOverview(){ showModal(DATA.overview,'p1'); }
+function closeModal(){ sfx.close(); backdrop.classList.remove('open'); }
+backdrop.addEventListener('click',e=>{ if(e.target===backdrop) closeModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&backdrop.classList.contains('open')) closeModal(); });
+
+function refreshBadges(){
+  if(view==='lesson'&&activePlanet!=null){
+    const p=DATA.planets[activePlanet];
+    stage.querySelectorAll('.node').forEach(n=>{
+      const lab=n.querySelector('.label'); if(!lab) return;
+      const name=lab.childNodes[0]?lab.childNodes[0].textContent:'';
+      const m=p.moons.find(x=>x.name===name); if(m&&isVisited(p,m)) n.classList.add('visited');
+    });
+  }
+}
+
+/* ---------------- PROGRESSO ---------------- */
+function visitedCount(){ return Object.keys(visited).length; }
+function updateProgress(){
+  const n=visitedCount();
+  document.getElementById('progress-label').textContent=`${n} / ${totalMoons} explorados`;
+  document.getElementById('progress-fill').style.width=(totalMoons?(n/totalMoons*100):0)+'%';
+}
+let completed=false;
+function checkComplete(){ if(!completed&&visitedCount()>=totalMoons){ completed=true; sfx.complete(); showToast('🎉 Você explorou o corpo inteiro!'); } }
+const toast=document.getElementById('toast'); let toastT=null;
+function showToast(m){ toast.textContent=m; toast.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>toast.classList.remove('show'),4200); }
+
+/* ---------------- BOTÕES ---------------- */
+const muteBtn=document.getElementById('muteBtn');
+tap(muteBtn,()=>{
+  audioOn=!audioOn; muteBtn.textContent=audioOn?'🔊':'🔇';
+  if(actx&&ambGain) ambGain.gain.setTargetAtTime(audioOn?0.5:0.0, actx.currentTime, 0.4);
+  if(audioOn) tone({freq:660,dur:.1,vol:.1});
+});
+tap(document.getElementById('infoBtn'),()=>{ sfx.node(); openOverview(); });
+
+/* ---------------- INTRO / START ---------------- */
+const intro=document.getElementById('intro');
+tap(document.getElementById('startBtn'),()=>{
+  initAudio(); if(actx&&actx.state==='suspended') actx.resume();
+  sfx.start();
+  intro.classList.add('gone'); topbar.classList.remove('hidden');
+  renderHub();
+  setTimeout(()=>{ intro.style.display='none'; },820);
+  setTimeout(()=>hintFloat.classList.add('hidden'),5400);
+});
+document.addEventListener('pointerdown',()=>{ if(actx&&actx.state==='suspended') actx.resume(); });
+
+sizeLinks(); updateProgress();
+if(visitedCount()>=totalMoons&&totalMoons>0) completed=true;
+</script>
+</body>
+</html>
